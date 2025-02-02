@@ -4,6 +4,7 @@ isFirePressed = false
 last_time = t()
 camera_x = 0
 camera_y = 0
+checkpoint_x = 64
 
 angles = {
     0, 45, 90, 135, 180, 225, 270, 315
@@ -73,7 +74,7 @@ ship = {
     ship_rotation_speed = 5,
 
     friction = 0.1, --between 0 - 1
-    
+
     acceleration = 50,
     x = 64,
     y = 64,
@@ -119,7 +120,7 @@ function _init()
 end
 function create_blocks()
     for i = 1, 5 do
-       block:new(ship.x + 64, ship.y + i * 10)
+        block:new(camera_x + 128, i * 10 - camera_y + 32)
     end
 end
 function _update()
@@ -127,6 +128,10 @@ function _update()
     dt = current_time - last_time
     ship.update(ship, dt)
     isFirePressed = btn(5)
+    if camera_x > checkpoint_x then
+        checkpoint_x += 128
+        create_blocks()
+    end
     foreach(particles, function(p) p:update() end)
     foreach(blocks, function(p) p:update() end)
     last_time = current_time
@@ -136,6 +141,6 @@ function _draw()
     cls()
     foreach(particles, function(p) p:draw() end)
     foreach(blocks, function(p) p:draw() end)
-    print(camera_x)
+    print(camera_y)
     ship.draw(ship)
 end
