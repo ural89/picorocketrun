@@ -1,4 +1,5 @@
 -- globals
+block_count = 5
 dt = 0
 isFirePressed = false
 last_time = t()
@@ -123,10 +124,10 @@ function _init()
     create_blocks()
 end
 function create_blocks()
-    for i = 1,5 do
+    for i = 1,block_count do
         deli(blocks, 1)
     end
-    for i = 1, 5 do
+    for i = 1, block_count do
         block:new(camera_x + 128, i * 10 - camera_y + 32)
     end
 end
