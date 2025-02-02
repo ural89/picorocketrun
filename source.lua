@@ -43,11 +43,11 @@ particle = {
     dy = -20,
     radius = 0,
     update = function(self)
-        self.radius += dt
+        self.radius += dt * 10
         self.dy += dt * 10
         self.y -= self.dy * dt - ship.dy
         self.x -= self.dx * dt + ship.dx
-        if self.x < 30 or self.y < 0 then
+        if self.radius > 5 then
             del(particles, self)
         end
     end,
