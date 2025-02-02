@@ -98,8 +98,12 @@ ship = {
                     self.y + sin_look_up[flr(self.ship_rotation)] * 4 + 4,
                     flr(self.ship_rotation)
                 )
-                self.dx += cos_look_up[flr(self.ship_rotation)] * dt * self.acceleration
-                self.dy += sin_look_up[flr(self.ship_rotation)] * dt * self.acceleration
+                self.dx += cos_look_up[flr(self.ship_rotation)]
+                        * dt * self.acceleration
+
+                self.dy += sin_look_up[flr(self.ship_rotation)]
+                        * dt * self.acceleration
+
                 self.particleReleaseTime = 0
             end
         end
@@ -119,6 +123,9 @@ function _init()
     create_blocks()
 end
 function create_blocks()
+    for i = 1,5 do
+        deli(blocks, 1)
+    end
     for i = 1, 5 do
         block:new(camera_x + 128, i * 10 - camera_y + 32)
     end
@@ -141,6 +148,5 @@ function _draw()
     cls()
     foreach(particles, function(p) p:draw() end)
     foreach(blocks, function(p) p:draw() end)
-    print(camera_y)
     ship.draw(ship)
 end
