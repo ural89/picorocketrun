@@ -45,8 +45,8 @@ particle = {
     update = function(self)
         self.radius += dt
         self.dy += dt * 10
-        self.y -= self.dy * dt
-        self.x -= self.dx * dt
+        self.y -= self.dy * dt - ship.dy
+        self.x -= self.dx * dt + ship.dx
         if self.x < 30 or self.y < 0 then
             del(particles, self)
         end
@@ -92,10 +92,6 @@ ship = {
             --if pressed
             self.particleReleaseTime += dt
             if self.particleReleaseTime > 0.1 then
-                block:new(
-                    self.x + camera_x,
-                    self.y - camera_y
-                )
                 particle:new(
                     self.x + cos_look_up[flr(self.ship_rotation)] * -8 + 4,
                     self.y + sin_look_up[flr(self.ship_rotation)] * 4 + 4,
@@ -119,9 +115,12 @@ ship = {
 }
 
 function _init()
+    create_blocks()
 end
 function create_blocks()
-    
+    for i = 1, 5 do
+       block:new(ship.x + 64, ship.y + i * 10)
+    end
 end
 function _update()
     local current_time = t()
