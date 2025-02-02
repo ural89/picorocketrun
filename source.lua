@@ -41,14 +41,18 @@ block = {
     end,
     on_hit = function(self, hit_power)
         self.dx = hit_power
+        self.is_sleeping = false
     end,
+
     update = function(self)
         if not self.is_sleeping then
             self.dy += 9.8 * dt
+            self.dx *= 0.98 --friction
         end
     end,
+
     draw = function(self)
-        self.x += self.dx * dt 
+        self.x += self.dx * dt
         self.y += self.dy * dt
         rect(self.x - camera_x, self.y + camera_y, self.x + 10 - camera_x, self.y + 10 + camera_y)
     end
@@ -139,9 +143,8 @@ function check_collision_with_ship(_block)
     local ship_x = ship.x
     local ship_y = ship.y
 
-    local obj_x = _block.start_x - camera_x
-    -- Use start_x (world position)
-    local obj_y = _block.start_y + camera_y
+    local obj_x = _block.x - camera_x
+    local obj_y = _block.y + camera_y
 
     return ship_x < obj_x + 10
             and ship_x + 10 > obj_x
@@ -183,7 +186,7 @@ function _draw()
             if check_collision_with_ship(block) then
                 block.is_sleeping = false
                 block:on_hit(ship.dx * 50)
-                ship.dx = ship.dx /2
+                ship.dx = ship.dx / 2
                 print("Collided!")
             end
         end
