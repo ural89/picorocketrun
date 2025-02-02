@@ -39,18 +39,20 @@ block = {
         setmetatable(obj, { __index = self })
         add(blocks, obj)
     end,
+    on_hit = function(self, hit_power)
+        self.dx = hit_power
+    end,
     update = function(self)
         if not self.is_sleeping then
             self.dy += 9.8 * dt
-            self.dx = 50
         end
         self.offset_x += self.dx * dt
         self.offset_y += self.dy * dt
     end,
     draw = function(self)
-        self.x = self.start_x - camera_x + self.offset_x
-        self.y = self.start_y + camera_y + self.offset_y
-        rect(self.x, self.y, self.x + 10, self.y + 10)
+        self.x = self.start_x - self.offset_x
+        self.y = self.start_y +  self.offset_y
+        rect(self.x - camera_x, self.y + camera_y, self.x + 10 - camera_x, self.y + 10 + camera_y)
     end
 }
 particles = {}
@@ -182,13 +184,13 @@ function _draw()
         blocks, function(block)
             if check_collision_with_ship(block) then
                 block.is_sleeping = false
+                block:on_hit(ship.dx * 20)
                 print("Collided!")
             end
         end
     )
 
-    print(ship.y)
-    print(blocks[1].y)
+    print(ship.dx)
 
     ship.draw(ship)
 end
