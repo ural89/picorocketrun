@@ -21,20 +21,36 @@ blocks = {}
 block = {
     x = 0,
     y = 0,
+    dx = 0,
+    dy = 0,
+    offset_x = 0,
+    offset_y = 0,
+    start_x = 0,
+    start_y = 0,
+    is_sleeping = true,
+
     new = function(self, x, y)
         local obj = {
             x = x,
-            y = y
+            y = y,
+            start_x = x,
+            start_y = y
         }
         setmetatable(obj, { __index = self })
         add(blocks, obj)
     end,
     update = function(self)
+        if not self.is_sleeping then
+            self.dy += 9.8 * dt
+            self.dx = 50
+        end
+        self.offset_x += self.dx * dt
+        self.offset_y += self.dy * dt
     end,
     draw = function(self)
-        pos_x = self.x - camera_x
-        pos_y = self.y + camera_y
-        rect(pos_x, pos_y, pos_x + 10, pos_y + 10)
+        self.x = self.start_x - camera_x + self.offset_x
+        self.y = self.start_y + camera_y + self.offset_y
+        rect(self.x, self.y, self.x + 10, self.y + 10)
     end
 }
 particles = {}
@@ -119,12 +135,25 @@ ship = {
         spr(self.sprites[flr(self.ship_rotation)], self.x, self.y)
     end
 }
+function check_collision_with_ship(_block)
+    local ship_x = ship.x
+    local ship_y = ship.y
+
+    local obj_x = _block.start_x - camera_x
+    -- Use start_x (world position)
+    local obj_y = _block.start_y + camera_y
+
+    return ship_x < obj_x + 10
+            and ship_x + 10 > obj_x
+            and ship_y < obj_y + 10
+            and ship_y + 10 > obj_y
+end
 
 function _init()
     create_blocks()
 end
 function create_blocks()
-    for i = 1,block_count do
+    for i = 1, block_count do
         deli(blocks, 1)
     end
     for i = 1, block_count do
@@ -149,5 +178,17 @@ function _draw()
     cls()
     foreach(particles, function(p) p:draw() end)
     foreach(blocks, function(p) p:draw() end)
+    foreach(
+        blocks, function(block)
+            if check_collision_with_ship(block) then
+                block.is_sleeping = false
+                print("Collided!")
+            end
+        end
+    )
+
+    print(ship.y)
+    print(blocks[1].y)
+
     ship.draw(ship)
 end
