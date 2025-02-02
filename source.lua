@@ -7,6 +7,9 @@ camera_x = 0
 camera_y = 0
 checkpoint_x = 64
 
+ceil_pos_y = 30
+ground_pos_y = 120
+
 angles = {
     0, 45, 90, 135, 180, 225, 270, 315
 }
@@ -28,6 +31,7 @@ block = {
     start_x = 0,
     start_y = 0,
     is_sleeping = true,
+    can_collide = true,
 
     new = function(self, x, y)
         local obj = {
@@ -39,22 +43,37 @@ block = {
         setmetatable(obj, { __index = self })
         add(blocks, obj)
     end,
-    on_hit = function(self, hit_power)
-        self.dx = hit_power
-        self.is_sleeping = false
+    on_hit_with_ship = function(self)
+        if self.can_collide then
+            self.can_collide = false
+            move_y = 0
+            if ship.y > self.y then
+                move_y = ship.dx * sin_look_up[6]
+            else
+                move_y = ship.dx * sin_look_up[2]
+            end
+
+            self.dx = ship.dx * 50
+            self.dy = move_y
+            self.is_sleeping = false
+        end
     end,
 
     update = function(self)
         if not self.is_sleeping then
-            self.dy += 9.8 * dt
+            self.dy += 9.8 * dt * 10
             self.dx *= 0.98 --friction
+        else
+            if self.x - camera_x < 0 then
+                del(blocks, self)
+            end
         end
     end,
 
     draw = function(self)
         self.x += self.dx * dt
         self.y += self.dy * dt
-        rect(self.x - camera_x, self.y + camera_y, self.x + 10 - camera_x, self.y + 10 + camera_y)
+        rect(self.x - camera_x, self.y + camera_y, self.x + 10 - camera_x, self.y + 10 + camera_y, 2)
     end
 }
 particles = {}
@@ -92,11 +111,12 @@ particle = {
 ship = {
     particleReleaseTime = 0,
     ship_rotation = 1,
-    ship_rotation_speed = 5,
+    ship_rotation_speed = 7,
 
-    friction = 0.1, --between 0 - 1
+    friction = 0.01, --between 0 - 1
 
-    acceleration = 50,
+    acceleration = 30,
+    gravity = 2,
     x = 64,
     y = 64,
     dx = 0,
@@ -105,6 +125,9 @@ ship = {
     sprites = { 0, 1, 2, 3, 4, 5, 6, 7 },
 
     update = function(self, dt)
+        if camera_y < -ground_pos_y + 64 +12 or camera_y > 64 - ceil_pos_y then
+            return
+        end
         if not isFirePressed then
             self.ship_rotation += dt * self.ship_rotation_speed
             self.particleReleaseTime = 0
@@ -132,6 +155,7 @@ ship = {
         if self.ship_rotation > 9 then
             self.ship_rotation = 1
         end
+        self.dy -= self.gravity * dt
         camera_x += self.dx
         camera_y += self.dy
     end,
@@ -156,11 +180,10 @@ function _init()
     create_blocks()
 end
 function create_blocks()
+    random_y =
+        rnd(30) + 25
     for i = 1, block_count do
-        deli(blocks, 1)
-    end
-    for i = 1, block_count do
-        block:new(camera_x + 128, i * 10 - camera_y + 32)
+        block:new(camera_x + 128, i * 10 + random_y)
     end
 end
 function _update()
@@ -176,7 +199,10 @@ function _update()
     foreach(blocks, function(p) p:update() end)
     last_time = current_time
 end
-
+function draw_ground()
+    rectfill(0, ceil_pos_y + camera_y, 128, 0, 3)
+    rectfill(0, ground_pos_y + camera_y, 128, 128, 3)
+end
 function _draw()
     cls()
     foreach(particles, function(p) p:draw() end)
@@ -185,14 +211,13 @@ function _draw()
         blocks, function(block)
             if check_collision_with_ship(block) then
                 block.is_sleeping = false
-                block:on_hit(ship.dx * 50)
+                block:on_hit_with_ship()
                 ship.dx = ship.dx / 2
-                print("Collided!")
             end
         end
     )
 
-    print(ship.dx)
-
     ship.draw(ship)
+    draw_ground()
+    -- print(blocks[1].x - camera_x, 2)
 end
