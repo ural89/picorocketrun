@@ -1,5 +1,5 @@
 -- globals
-block_count = 5
+block_count = 9
 dt = 0
 isFirePressed = false
 last_time = t()
@@ -206,7 +206,9 @@ function _init()
 end
 
 function create_blocks()
-    random_y = rnd(30) + 25
+    random_y =
+        --rnd(30) + 25
+        20
     for i = 1, block_count do
         block:new(camera_x + 128, i * 10 + random_y)
     end
@@ -241,10 +243,12 @@ function _draw()
     foreach(blocks, function(p) p:draw() end)
     foreach(
         blocks, function(block)
-            if check_collision_with_ship(block) then
-                block.is_sleeping = false
-                block:on_hit_with_ship()
-                ship.dx = ship.dx / 2
+            if block.can_collide then
+                if check_collision_with_ship(block) then
+                    block.is_sleeping = false
+                    block:on_hit_with_ship()
+                    ship.dx = ship.dx / 2
+                end
             end
         end
     )
