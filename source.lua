@@ -123,7 +123,7 @@ ship = {
     friction = 0.01, --between 0 - 1
 
     acceleration = 5,
-    gravity = 0,
+    gravity = -1,
     x = 64,
     y = 64,
     dx = 0,
@@ -224,8 +224,10 @@ function _update()
     foreach(particles, function(p) p:update() end)
     foreach(blocks, function(p) p:update() end)
 
-    camera_x = ship.x - 64
-    camera_y = ship.y - 64
+    local lerp_factor = 0.9
+    camera_x += (ship.x - 64 - camera_x) * lerp_factor
+    camera_y += (ship.y - 64 - camera_y) * lerp_factor
+
     last_time = current_time
 end
 
