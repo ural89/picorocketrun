@@ -3,12 +3,17 @@ block_count = 18
 dt = 0
 isFirePressed = false
 last_time = t()
+--camera
 camera_x = 0
 camera_y = 0
 camera_shake_amount = 0
 camera_shake_time_passed = 0
+
+--game rules
+walls_passed = 0
 checkpoint_x = 64
 
+--environment
 ceil_pos_y = 30
 ground_pos_y = 120
 ground_close_speed = 1
@@ -25,7 +30,8 @@ sin_look_up = {
 
 stars = {}
 
-lines = {}
+ground_lines = {}
+ceil_lines = {}
 
 bonus_texts = {}
 
@@ -172,6 +178,9 @@ ship = {
         end
         if not isFirePressed then
             self.ship_rotation += dt * self.ship_rotation_speed
+            if self.ship_rotation > 9 then
+                self.ship_rotation = 1
+            end
             self.particleReleaseTime = 0
             self.dx *= (1 - self.friction)
             self.dy *= (1 - self.friction)
@@ -179,14 +188,16 @@ ship = {
             --if pressed
             self.particleReleaseTime += dt
             if self.particleReleaseTime > 0.01 then
+                local rot = (flr(self.ship_rotation) - 1) % 8 + 1 -- Ensures valid lookup index
                 particle:new(
-                    self.x + cos_look_up[flr(self.ship_rotation)] * -8 + 4,
-                    self.y + sin_look_up[flr(self.ship_rotation)] * 4 + 4,
+                    self.x + cos_look_up[rot] * -8 + 4,
+                    self.y + sin_look_up[rot] * 4 + 4,
                     ship.dx,
                     ship.dy,
-                    flr(self.ship_rotation),
+                    rot,
                     1
                 )
+                
             end
             self.dx += cos_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
@@ -196,9 +207,6 @@ ship = {
             self.particleReleaseTime = 0
         end
 
-        if self.ship_rotation > 9 then
-            self.ship_rotation = 1
-        end
         self.dy -= self.gravity * dt
         self.dx = mid(-self.max_speed, self.dx, self.max_speed)
         self.dy = mid(-self.max_speed, self.dy, self.max_speed)
@@ -256,8 +264,8 @@ function create_lines()
             x2 = i * 8,
             y2 = ground_pos_y
         }
-        add(lines, _lineground)
-        add(lines, _line)
+        add(ground_lines, _lineground)
+        add(ceil_lines, _line)
     end
 end
 
@@ -275,10 +283,8 @@ function start_camera_shake(amount)
 end
 
 function update_camera()
-    local lerp_factor = 1
-    --0.5
+    local lerp_factor = 0.9
     camera_x += (ship.x - 64 - camera_x) * lerp_factor
-    -- camera_y += (ship.y - 64 - camera_y) * lerp_factor
     local duration = 0.2
     if camera_shake_time_passed < duration then
         camera_shake_time_passed += dt
@@ -290,10 +296,23 @@ function update_camera()
 end
 
 function on_level_up()
-    ground_close_speed += 1
-    ship.max_speed += 0.1
-    ship.ship_rotation_speed += 1
-    ship.acceleration += 1
+    local max_speed = ship.max_speed
+    local acceleration = ship.acceleration
+    local gravity = ship.gravity
+    local ship_rotation_speed = ship.ship_rotation_speed
+    local ground_close_speed = ground_close_speed
+
+    ground_close_speed += 0.1
+    max_speed += 0.1
+    gravity -= 0.05
+    ship_rotation_speed += 0.1
+    acceleration += 0.5
+
+    ground_close_speed = min(10, ground_close_speed)
+    ship.max_speed = min(2, max_speed)
+    ship.ship_rotation_speed = min(7, ship_rotation_speed)
+    ship.gravity = max(-1, gravity)
+    ship.acceleration = min(5, acceleration)
 end
 
 function _update()
@@ -304,7 +323,7 @@ function _update()
     ship.update(ship, dt)
     isFirePressed = btn(5)
     if camera_x > checkpoint_x then
-        checkpoint_x += 128
+        checkpoint_x += 64
         create_blocks()
     end
     foreach(particles, function(p) p:update() end)
@@ -330,7 +349,7 @@ end
 
 function draw_lines()
     foreach(
-        lines, function(_line)
+        ground_lines, function(_line)
             line(_line.x1 - camera_x - 32, _line.y1 - camera_y, _line.x2 - camera_x, _line.y2 - camera_y, 4)
             if _line.x1 - camera_x < 0 then
                 _line.x1 += 128
@@ -358,14 +377,22 @@ function create_stars()
 end
 
 function on_hit_new_wall()
+    walls_passed += 1
     has_hit = false
     foreach(
         blocks, function(block)
             block:on_hit_with_ship()
         end
     )
+    local push_back_walls_amount = 2
+    ceil_pos_y -= push_back_walls_amount
+    ground_pos_y += push_back_walls_amount
     start_camera_shake(ship.dx)
     ship.dx = ship.dx / 2
+
+    if walls_passed % 1 == 0 then
+        on_level_up()
+    end
 end
 
 function draw_background_starts()
