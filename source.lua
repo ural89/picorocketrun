@@ -22,10 +22,8 @@ angles = {
     0, 45, 90, 135, 180, 225, 270, 315
 }
 cos_look_up = {
-    1, 0.707, 0, -0.707, -1, -0.707, 0, 0.707
 }
 sin_look_up = {
-    0, 0.707, 1, 0.707, 0, -0.707, -1, -0.707
 }
 
 stars = {}
@@ -188,9 +186,9 @@ ship = {
             --if pressed
             self.particleReleaseTime += dt
             if self.particleReleaseTime > 0.01 then
-                local rot = (flr(self.ship_rotation) - 1) % 8 + 1 -- Ensures valid lookup index
+                local rot = (flr(self.ship_rotation) - 1) % 8 + 1 
                 particle:new(
-                    self.x + cos_look_up[rot] * -8 + 4,
+                    self.x - cos_look_up[rot] * -8 + 4,
                     self.y + sin_look_up[rot] * 4 + 4,
                     ship.dx,
                     ship.dy,
@@ -202,7 +200,7 @@ ship = {
             self.dx += cos_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
 
-            self.dy -= sin_look_up[flr(self.ship_rotation)]
+            self.dy += sin_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
             self.particleReleaseTime = 0
         end
@@ -246,9 +244,21 @@ end
 
 function _init()
     -- create_blocks()
+    initialize_trig_tables()
     create_stars()
     create_lines()
 end
+function initialize_trig_tables()
+    cos_look_up = {}
+    sin_look_up = {}
+
+    for i, angle in ipairs(angles) do
+        cos_look_up[i] = cos(angle / 365)
+        sin_look_up[i] = sin(angle / 365)
+    end
+end
+
+
 
 function create_lines()
     for i = 1, 16 do
@@ -414,9 +424,9 @@ function _draw()
     draw_background_starts()
     foreach(blocks, function(p) p:draw() end)
 
-    ship.draw(ship)
     draw_ground()
     draw_lines()
-    print(ship.dx, 2)
     foreach(particles, function(p) p:draw() end)
+    ship.draw(ship)
+    print(ship.dx, 2)
 end
