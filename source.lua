@@ -1,5 +1,5 @@
 -- globals
-block_count = 9
+block_count = 18
 dt = 0
 isFirePressed = false
 last_time = t()
@@ -22,12 +22,20 @@ sin_look_up = {
     0, 0.707, 1, 0.707, 0, -0.707, -1, -0.707
 }
 
+stars = {}
+star = {
+    x = 0,
+    y = 0,
+    size = 0
+}
 blocks = {}
 block = {
     x = 0,
     y = 0,
     dx = 0,
     dy = 0,
+    sizex = 5,
+    sizey = 5,
     offset_x = 0,
     offset_y = 0,
     start_x = 0,
@@ -75,7 +83,7 @@ block = {
     end,
 
     draw = function(self)
-        rect(self.x - camera_x, self.y - camera_y, self.x + 10 - camera_x, self.y + 10 - camera_y, 2)
+        rect(self.x - camera_x, self.y - camera_y, self.x + self.sizex - camera_x, self.y + self.sizey - camera_y, 2)
     end
 }
 
@@ -130,7 +138,7 @@ ship = {
     y = 64,
     dx = 0,
     dy = 0,
-
+    debug_move = false,
     sprites = { 0, 1, 2, 3, 4, 5, 6, 7 },
     explosion_sprites = { 8, 9, 10, 11, 12, 13, 14, 15, 16 },
 
@@ -141,6 +149,15 @@ ship = {
             end
             self.is_dead = true
             return
+        end
+        if self.debug_move then
+            self.gravity = 0
+            if btn(0) then self.dx -= 1 end
+            if btn(1) then self.dx += 1 end
+            if btn(2) then self.dy -= 1 end
+            if btn(3) then
+                self.dy += 1
+            end
         end
         if not isFirePressed then
             self.ship_rotation += dt * self.ship_rotation_speed
@@ -201,37 +218,39 @@ ship = {
     end
 }
 function check_collision_with_ship(_block)
-    return ship.x < _block.x + 10
+    return ship.x < _block.x + block.sizex
             and ship.x + 10 > _block.x
-            and ship.y < _block.y + 10
+            and ship.y < _block.y + block.sizey
             and ship.y + 10 > _block.y
 end
 
 function _init()
     create_blocks()
+    create_stars()
 end
 
 function create_blocks()
     random_y =
         --rnd(30) + 25
-        20
+        25
     for i = 1, block_count do
-        block:new(camera_x + 128, i * 10 + random_y)
+        block:new(camera_x + 128, i * block.sizey + random_y)
     end
 end
-function  start_camera_shake(amount)
+function start_camera_shake(amount)
     camera_shake_amount = amount
     camera_shake_time_passed = 0
 end
+
 function update_camera()
     local lerp_factor = 0.5
     camera_x += (ship.x - 64 - camera_x) * lerp_factor
     camera_y += (ship.y - 64 - camera_y) * lerp_factor
-    local duration = 0.5
+    local duration = 0.2
     if camera_shake_time_passed < duration then
         camera_shake_time_passed += dt
-        camera_x += rnd(camera_shake_amount) - 1
-        camera_y += rnd(camera_shake_amount) - 1
+        camera_x += rnd(camera_shake_amount)
+        camera_y += rnd(camera_shake_amount)
     end
 end
 
@@ -252,8 +271,8 @@ function _update()
                 if check_collision_with_ship(block) then
                     block.is_sleeping = false
                     block:on_hit_with_ship()
+                    start_camera_shake(ship.dx * 4)
                     ship.dx = ship.dx / 2
-                    start_camera_shake(ship.dx)
                 end
             end
         end
@@ -269,13 +288,38 @@ function draw_ground()
     rectfill(0, ground_pos_y - camera_y, 128, 128, 3)
 end
 
+function create_stars()
+    for i = 1, 30 do
+        local star = {
+            x = flr(rnd(128)),
+            y = flr(rnd(128)),
+            size = flr(i / 15),
+            color = flr(rnd(15))
+        }
+        add(stars, star)
+    end
+end
+
+function draw_background_starts()
+    local starspr = 16
+    local mid_startspr = 17
+    local big_startspr = 18
+    foreach(
+        stars, function(star)
+                local star_pos_x = star.x - (camera_x / 16 * (star.size + 1))
+                local star_pos_y = star.y - (camera_y / 16 * (star.size + 1))
+                if (star_pos_x < 0) star.x += 128
+                spr(16 + flr(star.size), star_pos_x, star_pos_y)
+        end
+    )
+end
+
 function _draw()
     cls()
+    draw_background_starts()
     foreach(blocks, function(p) p:draw() end)
 
     ship.draw(ship)
     draw_ground()
     foreach(particles, function(p) p:draw() end)
-    print(camera_shake_amount, 2)
-    -- print(blocks[1].x - camera_x, 2)
 end
