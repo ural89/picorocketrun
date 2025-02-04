@@ -3,6 +3,7 @@ block_count = 18
 dt = 0
 isFirePressed = false
 last_time = t()
+spawn_wall_x_amount = 64
 --camera
 camera_x = 0
 camera_y = 0
@@ -19,12 +20,10 @@ ground_pos_y = 120
 ground_close_speed = 1
 
 angles = {
-    0, 45, 90, 135, 180, 225, 270, 315
+    0, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 110, 120, 130, 140, 150, 160, 170, 180, 190, 200, 210, 220, 230, 240, 250, 260, 270, 280, 290, 300, 310, 320, 330, 340, 350
 }
-cos_look_up = {
-}
-sin_look_up = {
-}
+cos_look_up = {}
+sin_look_up = {}
 
 stars = {}
 
@@ -97,7 +96,7 @@ block = {
     end,
 
     draw = function(self)
-        rect(self.x - camera_x, self.y - camera_y, self.x + self.sizex - camera_x, self.y + self.sizey - camera_y, 2)
+        rectfill(self.x - camera_x, self.y - camera_y, self.x + self.sizex - camera_x, self.y + self.sizey - camera_y, 2)
     end
 }
 
@@ -142,7 +141,7 @@ ship = {
     dead_anim_index = 1,
     particleReleaseTime = 0,
     ship_rotation = 1,
-    ship_rotation_speed = 4,
+    ship_rotation_speed = 30,
     max_speed = 1,
 
     friction = 0.01, --between 0 - 1
@@ -155,7 +154,7 @@ ship = {
     dy = 0,
     debug_move = false,
     sprites = { 0, 1, 2, 3, 4, 5, 6, 7 },
-    explosion_sprites = { 8, 9, 10, 11, 12, 13, 14, 15, 16 },
+    explosion_sprites = { 64, 65, 66, 67, 68, 69, 70, 71 },
 
     update = function(self, dt)
         if (ship.y + 8 > ground_pos_y or ship.y < ceil_pos_y) then
@@ -175,8 +174,10 @@ ship = {
             end
         end
         if not isFirePressed then
+            local angles_count = #angles --TODO: cache
             self.ship_rotation += dt * self.ship_rotation_speed
-            if self.ship_rotation > 9 then
+            if self.ship_rotation > #angles then
+                --TODO: cache angles count
                 self.ship_rotation = 1
             end
             self.particleReleaseTime = 0
@@ -186,16 +187,15 @@ ship = {
             --if pressed
             self.particleReleaseTime += dt
             if self.particleReleaseTime > 0.01 then
-                local rot = (flr(self.ship_rotation) - 1) % 8 + 1 
+                local rot = (flr(self.ship_rotation) - 1) % (#angles - 1) + 1
                 particle:new(
-                    self.x - cos_look_up[rot] * -8 + 4,
-                    self.y + sin_look_up[rot] * 4 + 4,
+                    self.x,
+                    self.y,
                     ship.dx,
                     ship.dy,
                     rot,
                     1
                 )
-                
             end
             self.dx += cos_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
@@ -231,7 +231,21 @@ ship = {
                 rnd(5)
             )
         else
-            spr(self.sprites[flr(self.ship_rotation)], self.x - camera_x, self.y - camera_y)
+            local rot = (flr(self.ship_rotation) - 1) % (#angles - 1) + 1
+
+            -- Compute front and back points
+            local nose_x = self.x + 8 * cos_look_up[rot]
+            local nose_y = self.y + 8 * sin_look_up[rot]
+            local back_left_x = self.x + 4 * cos_look_up[(rot + 5) % #angles + 1]
+            local back_left_y = self.y + 4 * sin_look_up[(rot + 5) % #angles + 1]
+            local back_right_x = self.x + 4 * cos_look_up[(rot - 5) % #angles + 1]
+            local back_right_y = self.y + 4 * sin_look_up[(rot - 5) % #angles + 1]
+
+            -- Draw rocket as a triangle
+            line(nose_x - camera_x, nose_y - camera_y, back_left_x - camera_x, back_left_y - camera_y, 2)
+            line(nose_x - camera_x, nose_y - camera_y, back_right_x - camera_x, back_right_y - camera_y, 2)
+            line(back_left_x - camera_x, back_left_y - camera_y, back_right_x - camera_x, back_right_y - camera_y, 1)
+            -- spr(self.sprites[flr(self.ship_rotation)], self.x - camera_x, self.y - camera_y)
         end
     end
 }
@@ -257,8 +271,6 @@ function initialize_trig_tables()
         sin_look_up[i] = sin(angle / 365)
     end
 end
-
-
 
 function create_lines()
     for i = 1, 16 do
@@ -310,17 +322,18 @@ function on_level_up()
     local acceleration = ship.acceleration
     local gravity = ship.gravity
     local ship_rotation_speed = ship.ship_rotation_speed
-    local ground_close_speed = ground_close_speed
 
+    spawn_wall_x_amount += 10
     ground_close_speed += 0.1
     max_speed += 0.1
     gravity -= 0.05
     ship_rotation_speed += 0.1
     acceleration += 0.5
 
+    spawn_wall_x_amount = min(128, spawn_wall_x_amount)
     ground_close_speed = min(10, ground_close_speed)
     ship.max_speed = min(2, max_speed)
-    ship.ship_rotation_speed = min(7, ship_rotation_speed)
+    ship.ship_rotation_speed = min(50, ship_rotation_speed)
     ship.gravity = max(-1, gravity)
     ship.acceleration = min(5, acceleration)
 end
@@ -333,7 +346,7 @@ function _update()
     ship.update(ship, dt)
     isFirePressed = btn(5)
     if camera_x > checkpoint_x then
-        checkpoint_x += 64
+        checkpoint_x += spawn_wall_x_amount
         create_blocks()
     end
     foreach(particles, function(p) p:update() end)
@@ -360,7 +373,16 @@ end
 function draw_lines()
     foreach(
         ground_lines, function(_line)
-            line(_line.x1 - camera_x - 32, _line.y1 - camera_y, _line.x2 - camera_x, _line.y2 - camera_y, 4)
+            line(_line.x1 - camera_x - 32, _line.y1 - camera_y, _line.x2 - camera_x, ground_pos_y - camera_y, 4)
+            if _line.x1 - camera_x < 0 then
+                _line.x1 += 128
+                _line.x2 += 128
+            end
+        end
+    )
+    foreach(
+        ceil_lines, function(_line)
+            line(_line.x1 - camera_x - 32, _line.y1 - camera_y, _line.x2 - camera_x, ceil_pos_y - camera_y, 4)
             if _line.x1 - camera_x < 0 then
                 _line.x1 += 128
                 _line.x2 += 128
