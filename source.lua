@@ -5,6 +5,8 @@ isFirePressed = false
 last_time = t()
 camera_x = 0
 camera_y = 0
+camera_shake_amount = 0
+camera_shake_time_passed = 0
 checkpoint_x = 64
 
 ceil_pos_y = 30
@@ -88,16 +90,16 @@ particle = {
     update = function(self)
         self.radius += dt * 10
         self.dy += dt * 10
-        self.y -= self.dy * dt - ship.dy
-        self.x -= self.dx * dt + ship.dx
+        self.y -= self.dy * dt
+        self.x -= self.dx * dt
         if self.radius > 5 then
             del(particles, self)
         end
     end,
-    new = function(self, x, y, start_angle, color)
+    new = function(self, x, y, dx, dy, start_angle, color)
         local obj = {
-            dx = (cos_look_up[start_angle] or 1) * self.dx * rnd(100),
-            dy = (sin_look_up[start_angle] or 1) * -self.dy * rnd(100),
+            dx = dx,
+            dy = dy,
             x = x,
             y = y,
             color = color,
@@ -152,6 +154,8 @@ ship = {
                 particle:new(
                     self.x + cos_look_up[flr(self.ship_rotation)] * -8 + 4,
                     self.y + sin_look_up[flr(self.ship_rotation)] * 4 + 4,
+                    ship.dx,
+                    ship.dy,
                     flr(self.ship_rotation),
                     1
                 )
@@ -186,6 +190,8 @@ ship = {
             particle:new(
                 self.x,
                 self.y,
+                rnd(10),
+                rnd(15),
                 flr(2),
                 rnd(5)
             )
@@ -213,6 +219,21 @@ function create_blocks()
         block:new(camera_x + 128, i * 10 + random_y)
     end
 end
+function  start_camera_shake(amount)
+    camera_shake_amount = amount
+    camera_shake_time_passed = 0
+end
+function update_camera()
+    local lerp_factor = 0.5
+    camera_x += (ship.x - 64 - camera_x) * lerp_factor
+    camera_y += (ship.y - 64 - camera_y) * lerp_factor
+    local duration = 0.5
+    if camera_shake_time_passed < duration then
+        camera_shake_time_passed += dt
+        camera_x += rnd(camera_shake_amount) - 1
+        camera_y += rnd(camera_shake_amount) - 1
+    end
+end
 
 function _update()
     local current_time = t()
@@ -224,11 +245,21 @@ function _update()
         create_blocks()
     end
     foreach(particles, function(p) p:update() end)
-    foreach(blocks, function(p) p:update() end)
+    foreach(
+        blocks, function(block)
+            block:update()
+            if block.can_collide then
+                if check_collision_with_ship(block) then
+                    block.is_sleeping = false
+                    block:on_hit_with_ship()
+                    ship.dx = ship.dx / 2
+                    start_camera_shake(ship.dx)
+                end
+            end
+        end
+    )
 
-    local lerp_factor = 0.9
-    camera_x += (ship.x - 64 - camera_x) * lerp_factor
-    camera_y += (ship.y - 64 - camera_y) * lerp_factor
+    update_camera()
 
     last_time = current_time
 end
@@ -241,22 +272,10 @@ end
 function _draw()
     cls()
     foreach(blocks, function(p) p:draw() end)
-    foreach(
-        blocks, function(block)
-            if block.can_collide then
-                if check_collision_with_ship(block) then
-                    block.is_sleeping = false
-                    block:on_hit_with_ship()
-                    ship.dx = ship.dx / 2
-                end
-            end
-        end
-    )
 
     ship.draw(ship)
     draw_ground()
     foreach(particles, function(p) p:draw() end)
-    print(ship.y, 2)
-    print(ground_pos_y, 2)
+    print(camera_shake_amount, 2)
     -- print(blocks[1].x - camera_x, 2)
 end
