@@ -11,6 +11,7 @@ checkpoint_x = 64
 
 ceil_pos_y = 30
 ground_pos_y = 120
+ground_close_speed = 1
 
 angles = {
     0, 45, 90, 135, 180, 225, 270, 315
@@ -25,6 +26,8 @@ sin_look_up = {
 stars = {}
 
 lines = {}
+
+bonus_texts = {}
 
 blocks = {}
 block = {
@@ -52,18 +55,27 @@ block = {
         add(blocks, obj)
     end,
     on_hit_with_ship = function(self)
+        self.is_sleeping = false
         if self.can_collide then
             self.can_collide = false
             move_y = 0
             if ship.y > self.y then
-                move_y = ship.dx * sin_look_up[6] * rnd(10)
+                move_y = ship.dx * sin_look_up[6] * 20
             else
-                move_y = ship.dx * sin_look_up[2] * rnd(10)
+                move_y = ship.dx * sin_look_up[2] * 20
             end
 
             self.dx = ship.dx * (50 + rnd(10))
             self.dy = move_y
             self.is_sleeping = false
+            particle:new(
+                self.x,
+                self.y,
+                1,
+                move_y / rnd(5),
+                flr(2),
+                rnd(5)
+            )
         end
     end,
 
@@ -95,9 +107,9 @@ particle = {
     color = 1,
     update = function(self)
         self.radius += dt * 10
-        self.dy += dt * 10
-        self.y -= self.dy * dt
-        self.x -= self.dx * dt
+        self.dy += dt * 2
+        self.y -= self.dy
+        self.x -= self.dx
         if self.radius > 5 then
             del(particles, self)
         end
@@ -126,17 +138,18 @@ ship = {
     dead_anim_index = 1,
     particleReleaseTime = 0,
     ship_rotation = 1,
-    ship_rotation_speed = 7,
+    ship_rotation_speed = 4,
+    max_speed = 1,
 
     friction = 0.01, --between 0 - 1
 
-    acceleration = 5,
-    gravity = -1,
+    acceleration = 2,
+    gravity = -0.5,
     x = 64,
     y = 64,
     dx = 0,
     dy = 0,
-    debug_move = true,
+    debug_move = false,
     sprites = { 0, 1, 2, 3, 4, 5, 6, 7 },
     explosion_sprites = { 8, 9, 10, 11, 12, 13, 14, 15, 16 },
 
@@ -180,7 +193,6 @@ ship = {
 
             self.dy -= sin_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
-
             self.particleReleaseTime = 0
         end
 
@@ -188,6 +200,8 @@ ship = {
             self.ship_rotation = 1
         end
         self.dy -= self.gravity * dt
+        self.dx = mid(-self.max_speed, self.dx, self.max_speed)
+        self.dy = mid(-self.max_speed, self.dy, self.max_speed)
         self.x += self.dx
         self.y += self.dy
     end,
@@ -205,8 +219,8 @@ ship = {
             particle:new(
                 self.x,
                 self.y,
-                rnd(10),
-                rnd(15),
+                rnd(1),
+                rnd(1),
                 flr(2),
                 rnd(5)
             )
@@ -261,20 +275,32 @@ function start_camera_shake(amount)
 end
 
 function update_camera()
-    local lerp_factor = 0.5
+    local lerp_factor = 1
+    --0.5
     camera_x += (ship.x - 64 - camera_x) * lerp_factor
-    camera_y += (ship.y - 64 - camera_y) * lerp_factor
+    -- camera_y += (ship.y - 64 - camera_y) * lerp_factor
     local duration = 0.2
     if camera_shake_time_passed < duration then
         camera_shake_time_passed += dt
-        camera_x += rnd(camera_shake_amount)
-        camera_y += rnd(camera_shake_amount)
+        camera_x += rnd(camera_shake_amount) - rnd(camera_shake_amount)
+        camera_y += rnd(camera_shake_amount) - rnd(camera_shake_amount)
+    else
+        camera_y = 0
     end
+end
+
+function on_level_up()
+    ground_close_speed += 1
+    ship.max_speed += 0.1
+    ship.ship_rotation_speed += 1
+    ship.acceleration += 1
 end
 
 function _update()
     local current_time = t()
     dt = current_time - last_time
+    ceil_pos_y += dt * ground_close_speed
+    ground_pos_y -= dt * ground_close_speed
     ship.update(ship, dt)
     isFirePressed = btn(5)
     if camera_x > checkpoint_x then
@@ -335,11 +361,10 @@ function on_hit_new_wall()
     has_hit = false
     foreach(
         blocks, function(block)
-            block.is_sleeping = false
             block:on_hit_with_ship()
         end
     )
-    start_camera_shake(ship.dx * 4)
+    start_camera_shake(ship.dx)
     ship.dx = ship.dx / 2
 end
 
