@@ -23,11 +23,9 @@ sin_look_up = {
 }
 
 stars = {}
-star = {
-    x = 0,
-    y = 0,
-    size = 0
-}
+
+lines = {}
+
 blocks = {}
 block = {
     x = 0,
@@ -138,7 +136,7 @@ ship = {
     y = 64,
     dx = 0,
     dy = 0,
-    debug_move = false,
+    debug_move = true,
     sprites = { 0, 1, 2, 3, 4, 5, 6, 7 },
     explosion_sprites = { 8, 9, 10, 11, 12, 13, 14, 15, 16 },
 
@@ -227,6 +225,26 @@ end
 function _init()
     -- create_blocks()
     create_stars()
+    create_lines()
+end
+
+function create_lines()
+    for i = 1, 16 do
+        local _line = {
+            x1 = i * 8,
+            y1 = 0,
+            x2 = i * 8,
+            y2 = ceil_pos_y
+        }
+        local _lineground = {
+            x1 = i * 8,
+            y1 = 200,
+            x2 = i * 8,
+            y2 = ground_pos_y
+        }
+        add(lines, _lineground)
+        add(lines, _line)
+    end
 end
 
 function create_blocks()
@@ -268,28 +286,32 @@ function _update()
     foreach(
         blocks, function(block)
             block:update()
-            if block.can_collide then
+            if not has_hit and block.can_collide then
                 if check_collision_with_ship(block) then
                     has_hit = true
+                    on_hit_new_wall()
                 end
             end
         end
     )
     if has_hit then
-        has_hit = false
-        foreach(
-            blocks, function(block)
-                block.is_sleeping = false
-                block:on_hit_with_ship()
-            end
-        )
-        start_camera_shake(ship.dx * 4)
-        ship.dx = ship.dx / 2
     end
 
     update_camera()
 
     last_time = current_time
+end
+
+function draw_lines()
+    foreach(
+        lines, function(_line)
+            line(_line.x1 - camera_x - 32, _line.y1 - camera_y, _line.x2 - camera_x, _line.y2 - camera_y, 4)
+            if _line.x1 - camera_x < 0 then
+                _line.x1 += 128
+                _line.x2 += 128
+            end
+        end
+    )
 end
 
 function draw_ground()
@@ -310,6 +332,15 @@ function create_stars()
 end
 
 function on_hit_new_wall()
+    has_hit = false
+    foreach(
+        blocks, function(block)
+            block.is_sleeping = false
+            block:on_hit_with_ship()
+        end
+    )
+    start_camera_shake(ship.dx * 4)
+    ship.dx = ship.dx / 2
 end
 
 function draw_background_starts()
@@ -333,5 +364,7 @@ function _draw()
 
     ship.draw(ship)
     draw_ground()
+    draw_lines()
+    print(ship.dx, 2)
     foreach(particles, function(p) p:draw() end)
 end
