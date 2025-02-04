@@ -58,12 +58,12 @@ block = {
             self.can_collide = false
             move_y = 0
             if ship.y > self.y then
-                move_y = ship.dx * sin_look_up[6]
+                move_y = ship.dx * sin_look_up[6] * rnd(10)
             else
-                move_y = ship.dx * sin_look_up[2]
+                move_y = ship.dx * sin_look_up[2] * rnd(10)
             end
 
-            self.dx = ship.dx * 50
+            self.dx = ship.dx * (50 + rnd(10))
             self.dy = move_y
             self.is_sleeping = false
         end
@@ -225,7 +225,7 @@ function check_collision_with_ship(_block)
 end
 
 function _init()
-    create_blocks()
+    -- create_blocks()
     create_stars()
 end
 
@@ -264,19 +264,28 @@ function _update()
         create_blocks()
     end
     foreach(particles, function(p) p:update() end)
+    has_hit = false
     foreach(
         blocks, function(block)
             block:update()
             if block.can_collide then
                 if check_collision_with_ship(block) then
-                    block.is_sleeping = false
-                    block:on_hit_with_ship()
-                    start_camera_shake(ship.dx * 4)
-                    ship.dx = ship.dx / 2
+                    has_hit = true
                 end
             end
         end
     )
+    if has_hit then
+        has_hit = false
+        foreach(
+            blocks, function(block)
+                block.is_sleeping = false
+                block:on_hit_with_ship()
+            end
+        )
+        start_camera_shake(ship.dx * 4)
+        ship.dx = ship.dx / 2
+    end
 
     update_camera()
 
@@ -300,16 +309,19 @@ function create_stars()
     end
 end
 
+function on_hit_new_wall()
+end
+
 function draw_background_starts()
     local starspr = 16
     local mid_startspr = 17
     local big_startspr = 18
     foreach(
         stars, function(star)
-                local star_pos_x = star.x - (camera_x / 16 * (star.size + 1))
-                local star_pos_y = star.y - (camera_y / 16 * (star.size + 1))
-                if (star_pos_x < 0) star.x += 128
-                spr(16 + flr(star.size), star_pos_x, star_pos_y)
+            local star_pos_x = star.x - (camera_x / 16 * (star.size + 1))
+            local star_pos_y = star.y - (camera_y / 16 * (star.size + 1))
+            if (star_pos_x < 0) star.x += 128
+            spr(16 + flr(star.size), star_pos_x, star_pos_y)
         end
     )
 end
