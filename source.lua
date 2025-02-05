@@ -29,8 +29,30 @@ stars = {}
 
 ground_lines = {}
 ceil_lines = {}
-
 bonus_texts = {}
+bonus_text = {
+    x = 0,
+    y = 0,
+    text = "",
+    new = function(self, x, y, text)
+        local obj = {
+            x = x,
+            y = y,
+            text = text
+        }
+        setmetatable(obj, { __index = self })
+        add(bonus_texts, obj)
+    end,
+    update = function(self)
+        self.y -= 1
+        if self.y < 15 then
+            del(bonus_texts, self)
+        end
+    end,
+    draw = function(self)
+        print(self.text, self.x, self.y, 1)
+    end
+}
 
 blocks = {}
 block = {
@@ -147,7 +169,7 @@ ship = {
     friction = 0.01, --between 0 - 1
 
     acceleration = 2,
-    gravity = -0.5,
+    gravity = -0.3,
     x = 64,
     y = 64,
     dx = 0,
@@ -157,7 +179,9 @@ ship = {
     explosion_sprites = { 64, 65, 66, 67, 68, 69, 70, 71 },
 
     update = function(self, dt)
-        if (ship.y + 8 > ground_pos_y or ship.y < ceil_pos_y) then
+        local sin_rot = sin_look_up[flr(ship.ship_rotation)]
+        if (ship.y + 10 * sin_rot > ground_pos_y or ship.y + 10 * sin_rot < ceil_pos_y) then
+            --if hit ground or ceil
             if not self.is_dead then
                 self.dead_time = t()
             end
@@ -236,10 +260,10 @@ ship = {
             -- Compute front and back points
             local nose_x = self.x + 8 * cos_look_up[rot]
             local nose_y = self.y + 8 * sin_look_up[rot]
-            local back_left_x = self.x + 4 * cos_look_up[(rot + 5) % #angles + 1]
-            local back_left_y = self.y + 4 * sin_look_up[(rot + 5) % #angles + 1]
-            local back_right_x = self.x + 4 * cos_look_up[(rot - 5) % #angles + 1]
-            local back_right_y = self.y + 4 * sin_look_up[(rot - 5) % #angles + 1]
+            local back_left_x = self.x - 4 * cos_look_up[(rot + 5) % #angles + 1]
+            local back_left_y = self.y - 4 * sin_look_up[(rot + 5) % #angles + 1]
+            local back_right_x = self.x - 4 * cos_look_up[(rot - 5) % #angles + 1]
+            local back_right_y = self.y - 4 * sin_look_up[(rot - 5) % #angles + 1]
 
             -- Draw rocket as a triangle
             line(nose_x - camera_x, nose_y - camera_y, back_left_x - camera_x, back_left_y - camera_y, 2)
@@ -257,7 +281,7 @@ function check_collision_with_ship(_block)
 end
 
 function _init()
-    -- create_blocks()
+    create_blocks()
     initialize_trig_tables()
     create_stars()
     create_lines()
@@ -325,10 +349,10 @@ function on_level_up()
 
     spawn_wall_x_amount += 10
     ground_close_speed += 0.1
-    max_speed += 0.1
-    gravity -= 0.05
+    max_speed += 0.08
+    gravity -= 0.03
     ship_rotation_speed += 0.1
-    acceleration += 0.5
+    acceleration += 0.08
 
     spawn_wall_x_amount = min(128, spawn_wall_x_amount)
     ground_close_speed = min(10, ground_close_speed)
@@ -357,13 +381,19 @@ function _update()
             if not has_hit and block.can_collide then
                 if check_collision_with_ship(block) then
                     has_hit = true
-                    on_hit_new_wall()
+                    on_hit_new_wall(ship.dx + ship.dy)
                 end
             end
         end
     )
     if has_hit then
     end
+    foreach(
+        bonus_texts,
+        function(text)
+            text:update()
+        end
+    )
 
     update_camera()
 
@@ -408,7 +438,8 @@ function create_stars()
     end
 end
 
-function on_hit_new_wall()
+function on_hit_new_wall(hit_speed)
+    bonus_text:new(ship.x - camera_x, ship.y - camera_y, flr(abs(ship.dx) * 100 + abs(ship.dy) * 100))
     walls_passed += 1
     has_hit = false
     foreach(
@@ -416,7 +447,7 @@ function on_hit_new_wall()
             block:on_hit_with_ship()
         end
     )
-    local push_back_walls_amount = 2
+    local push_back_walls_amount = hit_speed * 2.2
     ceil_pos_y -= push_back_walls_amount
     ground_pos_y += push_back_walls_amount
     start_camera_shake(ship.dx)
@@ -425,6 +456,14 @@ function on_hit_new_wall()
     if walls_passed % 1 == 0 then
         on_level_up()
     end
+end
+
+function draw_bonus_texts()
+    foreach(
+        bonus_texts, function(text)
+            text:draw()
+        end
+    )
 end
 
 function draw_background_starts()
@@ -450,5 +489,6 @@ function _draw()
     draw_lines()
     foreach(particles, function(p) p:draw() end)
     ship.draw(ship)
-    print(ship.dx, 2)
+    print(flr(abs(ship.dx) * 100 + abs(ship.dy) * 100))
+    draw_bonus_texts()
 end
