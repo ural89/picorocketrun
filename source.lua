@@ -4,6 +4,8 @@ dt = 0
 isFirePressed = false
 last_time = t()
 spawn_wall_x_amount = 64
+thrust_particle_freq = 0.2
+
 --camera
 camera_x = 0
 camera_y = 0
@@ -86,9 +88,9 @@ block = {
             self.can_collide = false
             move_y = 0
             if ship.y > self.y then
-                move_y = ship.dx * sin_look_up[6] * 100
+                move_y = ship.dx * sin_look_up[6] * (self.y - ship.y) * 100
             else
-                move_y = ship.dx * sin_look_up[2] * 100
+                move_y = ship.dx * sin_look_up[2] * (self.y - ship.y) * 100
             end
 
             self.dx = ship.dx * (50 + rnd(10))
@@ -199,9 +201,9 @@ ship = {
             end
         end
         if not isFirePressed then
-            local angles_count = #angles --TODO: cache
+            local angles_count = angles_count --TODO: cache
             self.ship_rotation += dt * self.ship_rotation_speed
-            if self.ship_rotation > #angles then
+            if self.ship_rotation > angles_count then
                 --TODO: cache angles count
                 self.ship_rotation = 1
             end
@@ -211,23 +213,71 @@ ship = {
         else
             --if pressed
             self.particleReleaseTime += dt
-            if self.particleReleaseTime > 0.01 then
-                local rot = (flr(self.ship_rotation) - 1) % (#angles - 1) + 1
-                particle:new(
-                    self.x,
-                    self.y,
-                    ship.dx,
-                    ship.dy,
-                    rot,
-                    1
-                )
+            if self.particleReleaseTime > thrust_particle_freq then
+                self.particleReleaseTime = 0
+                local rot = (flr(self.ship_rotation) - 1) % (angles_count - 1) + 1
+                local two_thrust_acceleration_threshold = 2.5
+                local three_thrust_acceleration_thershold = 3
+                if self.acceleration < two_thrust_acceleration_threshold then
+                    particle:new(
+                        self.x,
+                        self.y,
+                        ship.dx,
+                        ship.dy,
+                        rot,
+                        1
+                    )
+                end
+                if self.acceleration > two_thrust_acceleration_threshold then
+                    particle:new(
+                        self.x - 4,
+                        self.y - 4,
+                        ship.dx,
+                        ship.dy,
+                        rot,
+                        3
+                    )
+                    particle:new(
+                        self.x + 4,
+                        self.y + 4,
+                        ship.dx,
+                        ship.dy,
+                        rot,
+                        3
+                    )
+                end
+                if self.acceleration > three_thrust_acceleration_thershold then
+                    particle:new(
+                        self.x,
+                        self.y,
+                        ship.dx,
+                        ship.dy,
+                        rot,
+                        7
+                    )
+                    particle:new(
+                        self.x - 4,
+                        self.y - 4,
+                        ship.dx,
+                        ship.dy,
+                        rot,
+                        3
+                    )
+                    particle:new(
+                        self.x + 4,
+                        self.y + 4,
+                        ship.dx,
+                        ship.dy,
+                        rot,
+                        3
+                    )
+                end
             end
             self.dx += cos_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
 
             self.dy += sin_look_up[flr(self.ship_rotation)]
                     * dt * self.acceleration
-            self.particleReleaseTime = 0
         end
 
         self.dy -= self.gravity * dt
@@ -247,6 +297,7 @@ ship = {
                     self.x - camera_x, self.y - camera_y
                 ) --draw explosion
             end
+
             particle:new(
                 self.x,
                 self.y,
@@ -256,15 +307,15 @@ ship = {
                 rnd(5)
             )
         else
-            local rot = (flr(self.ship_rotation) - 1) % (#angles - 1) + 1
+            local rot = (flr(self.ship_rotation) - 1) % (angles_count - 1) + 1
 
             -- Compute front and back points
             local nose_x = self.x + 8 * cos_look_up[rot]
             local nose_y = self.y + 8 * sin_look_up[rot]
-            local back_left_x = self.x - 4 * cos_look_up[(rot + 5) % #angles + 1]
-            local back_left_y = self.y - 4 * sin_look_up[(rot + 5) % #angles + 1]
-            local back_right_x = self.x - 4 * cos_look_up[(rot - 5) % #angles + 1]
-            local back_right_y = self.y - 4 * sin_look_up[(rot - 5) % #angles + 1]
+            local back_left_x = self.x - 4 * cos_look_up[(rot + 5) % angles_count + 1]
+            local back_left_y = self.y - 4 * sin_look_up[(rot + 5) % angles_count + 1]
+            local back_right_x = self.x - 4 * cos_look_up[(rot - 5) % angles_count + 1]
+            local back_right_y = self.y - 4 * sin_look_up[(rot - 5) % angles_count + 1]
 
             -- Draw rocket as a triangle
             line(nose_x - camera_x, nose_y - camera_y, back_left_x - camera_x, back_left_y - camera_y, 2)
@@ -282,6 +333,9 @@ function check_collision_with_ship(_block)
 end
 
 function _init()
+    spawn_wall_x_amount = 64
+    thrust_particle_freq = 0.2
+    angles_count = #angles
     create_blocks()
     initialize_trig_tables()
     create_stars()
@@ -354,6 +408,7 @@ function on_level_up()
     gravity -= 0.03
     ship_rotation_speed += 0.1
     acceleration += 0.08
+    thrust_particle_freq -= 0.01
 
     spawn_wall_x_amount = min(128, spawn_wall_x_amount)
     ground_close_speed = min(10, ground_close_speed)
@@ -361,6 +416,7 @@ function on_level_up()
     ship.ship_rotation_speed = min(50, ship_rotation_speed)
     ship.gravity = max(-1, gravity)
     ship.acceleration = min(5, acceleration)
+    thrust_particle_freq = max(0.01, thrust_particle_freq)
 end
 
 function _update()
@@ -486,13 +542,12 @@ end
 function _draw()
     cls()
     draw_background_starts()
-    foreach(blocks, function(p) p:draw() end)
 
     draw_ground()
     draw_lines()
+    foreach(blocks, function(p) p:draw() end)
     foreach(particles, function(p) p:draw() end)
     ship.draw(ship)
-    -- print(flr(abs(ship.dx) * 100 + abs(ship.dy) * 100))
-    print("score: " ..score, 7)
+    print("score: " .. score, 7)
     draw_bonus_texts()
 end
