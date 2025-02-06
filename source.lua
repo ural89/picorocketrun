@@ -170,7 +170,7 @@ ship = {
     ship_rotation = 4,
     ship_rotation_speed = 30,
     max_speed = 1,
-
+    is_thrusting = false,
     friction = 0.01, --between 0 - 1
 
     acceleration = 2,
@@ -196,6 +196,7 @@ ship = {
             if not self.is_dead then
                 self.dead_time = t()
             end
+            if not self.is_dead then sfx(4) end
             self.is_dead = true
             game_over = true
             return
@@ -210,6 +211,8 @@ ship = {
             end
         end
         if not isFirePressed then
+            if is_thrusting then sfx(2, -2) end
+            is_thrusting = false
             local angles_count = angles_count --TODO: cache
             self.ship_rotation += dt * self.ship_rotation_speed
             if self.ship_rotation > angles_count then
@@ -221,6 +224,8 @@ ship = {
             self.dy *= (1 - self.friction)
         else
             --if pressed
+            if not is_thrusting then sfx(2) end
+            is_thrusting = true
             self.particleReleaseTime += dt
             if self.particleReleaseTime > thrust_particle_freq then
                 self.particleReleaseTime = 0
@@ -385,6 +390,7 @@ function _init()
     create_lines()
     angles_count = #angles
 end
+
 function initialize_trig_tables()
     cos_look_up = {}
     sin_look_up = {}
@@ -467,8 +473,8 @@ function _update()
     local current_time = t()
     dt = current_time - last_time
     if has_start then
-    ceil_pos_y += dt * ground_close_speed
-    ground_pos_y -= dt * ground_close_speed
+        ceil_pos_y += dt * ground_close_speed
+        ground_pos_y -= dt * ground_close_speed
     end
     ship.update(ship, dt)
     isFirePressed = btn(5)
@@ -542,6 +548,7 @@ function create_stars()
 end
 
 function on_hit_new_wall(hit_speed)
+    sfx(3)
     local score_to_earn = flr(abs(ship.dx) * 100 + abs(ship.dy) * 100)
     bonus_text:new(ship.x - camera_x, ship.y - camera_y, score_to_earn)
     score += score_to_earn
@@ -604,8 +611,7 @@ function _draw()
         end
     end
     if not has_start then
-        print("only press x to play. ", 20, 32)
-        print("go to right breaking the walls", 0, 48)
+        print("only press x to play. ", 20, 32, 10)
+        print("go to right breaking the walls", 0, 48, 10)
     end
-
 end
