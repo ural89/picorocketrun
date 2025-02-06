@@ -13,6 +13,7 @@ camera_shake_time_passed = 0
 --game rules
 walls_passed = 0
 checkpoint_x = 64
+score = 0
 
 --environment
 ceil_pos_y = 30
@@ -50,7 +51,7 @@ bonus_text = {
         end
     end,
     draw = function(self)
-        print(self.text, self.x, self.y, 1)
+        print(self.text, self.x, self.y, 7)
     end
 }
 
@@ -85,9 +86,9 @@ block = {
             self.can_collide = false
             move_y = 0
             if ship.y > self.y then
-                move_y = ship.dx * sin_look_up[6] * 20
+                move_y = ship.dx * sin_look_up[6] * 100
             else
-                move_y = ship.dx * sin_look_up[2] * 20
+                move_y = ship.dx * sin_look_up[2] * 100
             end
 
             self.dx = ship.dx * (50 + rnd(10))
@@ -439,7 +440,9 @@ function create_stars()
 end
 
 function on_hit_new_wall(hit_speed)
-    bonus_text:new(ship.x - camera_x, ship.y - camera_y, flr(abs(ship.dx) * 100 + abs(ship.dy) * 100))
+    local score_to_earn = flr(abs(ship.dx) * 100 + abs(ship.dy) * 100)
+    bonus_text:new(ship.x - camera_x, ship.y - camera_y, score_to_earn)
+    score += score_to_earn
     walls_passed += 1
     has_hit = false
     foreach(
@@ -472,8 +475,8 @@ function draw_background_starts()
     local big_startspr = 18
     foreach(
         stars, function(star)
-            local star_pos_x = star.x - (camera_x / 16 * (star.size + 1))
-            local star_pos_y = star.y - (camera_y / 16 * (star.size + 1))
+            local star_pos_x = star.x - (camera_x / 4 * (star.size + 1))
+            local star_pos_y = star.y - (camera_y / 4 * (star.size + 1))
             if (star_pos_x < 0) star.x += 128
             spr(16 + flr(star.size), star_pos_x, star_pos_y)
         end
@@ -489,6 +492,7 @@ function _draw()
     draw_lines()
     foreach(particles, function(p) p:draw() end)
     ship.draw(ship)
-    print(flr(abs(ship.dx) * 100 + abs(ship.dy) * 100))
+    -- print(flr(abs(ship.dx) * 100 + abs(ship.dy) * 100))
+    print("score: " ..score, 7)
     draw_bonus_texts()
 end
