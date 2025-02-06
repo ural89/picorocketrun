@@ -5,6 +5,8 @@ isFirePressed = false
 last_time = t()
 spawn_wall_x_amount = 64
 thrust_particle_freq = 0.2
+game_over = false
+has_start = false
 
 --camera
 camera_x = 0
@@ -88,12 +90,12 @@ block = {
             self.can_collide = false
             move_y = 0
             if ship.y > self.y then
-                move_y = ship.dx * sin_look_up[6] * (self.y - ship.y) * 100
+                move_y = ship.dx * sin_look_up[6] * (ship.y - self.y) * rnd(5)
             else
-                move_y = ship.dx * sin_look_up[2] * (self.y - ship.y) * 100
+                move_y = ship.dx * sin_look_up[2] * (ship.y - self.y) * rnd(5)
             end
 
-            self.dx = ship.dx * (50 + rnd(10))
+            self.dx = ship.dx * (50 - abs(self.y - ship.y)) * 2
             self.dy = move_y
             self.is_sleeping = false
             particle:new(
@@ -165,7 +167,7 @@ ship = {
     dead_time = 0,
     dead_anim_index = 1,
     particleReleaseTime = 0,
-    ship_rotation = 1,
+    ship_rotation = 4,
     ship_rotation_speed = 30,
     max_speed = 1,
 
@@ -182,6 +184,12 @@ ship = {
     explosion_sprites = { 64, 65, 66, 67, 68, 69, 70, 71 },
 
     update = function(self, dt)
+        if not has_start then
+            if btn(5) then
+                has_start = true
+            end
+            return
+        end
         local sin_rot = sin_look_up[flr(ship.ship_rotation)]
         if (ship.y + 10 * sin_rot > ground_pos_y or ship.y + 10 * sin_rot < ceil_pos_y) then
             --if hit ground or ceil
@@ -189,6 +197,7 @@ ship = {
                 self.dead_time = t()
             end
             self.is_dead = true
+            game_over = true
             return
         end
         if self.debug_move then
@@ -331,15 +340,50 @@ function check_collision_with_ship(_block)
             and ship.y < _block.y + block.sizey
             and ship.y + 10 > _block.y
 end
-
+function _reset()
+    blocks = {}
+    particles = {}
+    bonus_texts = {}
+    stars = {}
+    ceil_pos_y = 30
+    ground_pos_y = 120
+    ground_close_speed = 1
+    walls_passed = 0
+    checkpoint_x = 64
+    score = 0
+    ship.is_dead = false
+    ship.dead_time = 0
+    ship.dead_anim_index = 1
+    ship.particleReleaseTime = 0
+    ship.ship_rotation = 4
+    ship.ship_rotation_speed = 30
+    ship.max_speed = 1
+    ship.friction = 0.01
+    ship.acceleration = 2
+    ship.gravity = -0.3
+    ship.x = 64
+    ship.y = 64
+    ship.dx = 0
+    ship.dy = 0
+    camera_x = 0
+    game_over = false
+    ship.debug_move = false
+    thrust_particle_freq = 0.2
+    spawn_wall_x_amount = 64
+    has_start = false
+    create_blocks()
+    create_stars()
+    create_lines()
+    initialize_trig_tables()
+end
 function _init()
     spawn_wall_x_amount = 64
     thrust_particle_freq = 0.2
-    angles_count = #angles
     create_blocks()
     initialize_trig_tables()
     create_stars()
     create_lines()
+    angles_count = #angles
 end
 function initialize_trig_tables()
     cos_look_up = {}
@@ -422,8 +466,10 @@ end
 function _update()
     local current_time = t()
     dt = current_time - last_time
+    if has_start then
     ceil_pos_y += dt * ground_close_speed
     ground_pos_y -= dt * ground_close_speed
+    end
     ship.update(ship, dt)
     isFirePressed = btn(5)
     if camera_x > checkpoint_x then
@@ -550,4 +596,16 @@ function _draw()
     ship.draw(ship)
     print("score: " .. score, 7)
     draw_bonus_texts()
+    if game_over then
+        print("score: " .. score, 14, 64, 7)
+        print("print z to restart ", 14, 80, 7)
+        if btn(4) then
+            _reset()
+        end
+    end
+    if not has_start then
+        print("only press x to play. ", 20, 32)
+        print("go to right breaking the walls", 0, 48)
+    end
+
 end
